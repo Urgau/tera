@@ -5,6 +5,7 @@ use std::io::prelude::*;
 use std::path::Path;
 use std::sync::Arc;
 
+#[cfg(feature = "glob")]
 use globwalk::glob_builder;
 
 use crate::builtins::filters::{array, common, number, object, string, Filter};
@@ -27,6 +28,7 @@ pub type EscapeFn = fn(&str) -> String;
 pub struct Tera {
     // The glob used in `Tera::new`, None if Tera was instantiated differently
     #[doc(hidden)]
+    #[cfg(feature = "glob")]
     glob: Option<String>,
     #[doc(hidden)]
     pub templates: HashMap<String, Template>,
@@ -45,6 +47,7 @@ pub struct Tera {
 }
 
 impl Tera {
+    #[cfg(feature = "glob")]
     fn create(dir: &str, parse_only: bool) -> Result<Tera> {
         if dir.find('*').is_none() {
             return Err(Error::msg(format!(
@@ -85,8 +88,19 @@ impl Tera {
     ///    }
     ///}
     ///```
+    #[cfg(feature = "glob")]
     pub fn new(dir: &str) -> Result<Tera> {
         Self::create(dir, false)
+    }
+
+    /// Create a new instance of Tera
+    ///
+    ///```ignore
+    ///let _ = Tera::new();
+    ///```
+    #[cfg(not(feature = "glob"))]
+    pub fn new() -> Tera {
+        Self::default()
     }
 
     /// Create a new instance of Tera, containing all the parsed templates found in the `dir` glob
@@ -105,11 +119,13 @@ impl Tera {
     ///};
     ///tera.build_inheritance_chains()?;
     ///```
+    #[cfg(feature = "glob")]
     pub fn parse(dir: &str) -> Result<Tera> {
         Self::create(dir, true)
     }
 
     /// Loads all the templates found in the glob that was given to Tera::new
+    #[cfg(feature = "glob")]
     fn load_from_glob(&mut self) -> Result<()> {
         if self.glob.is_none() {
             return Err(Error::msg("Tera can only load from glob if a glob is provided"));
@@ -697,6 +713,7 @@ impl Tera {
     ///
     /// If you are adding templates without using a glob, we can't know when a template
     /// is deleted, which would result in an error if we are trying to reload that file
+    #[cfg(feature = "glob")]
     pub fn full_reload(&mut self) -> Result<()> {
         if self.glob.is_some() {
             self.load_from_glob()?;
@@ -746,6 +763,7 @@ impl Tera {
 impl Default for Tera {
     fn default() -> Tera {
         let mut tera = Tera {
+            #[cfg(feature = "glob")]
             glob: None,
             templates: HashMap::new(),
             filters: HashMap::new(),
@@ -791,9 +809,11 @@ impl fmt::Debug for Tera {
 
 #[cfg(test)]
 mod tests {
+    #[cfg(feature = "glob")]
     use tempfile::tempdir;
 
     use std::collections::HashMap;
+    #[cfg(feature = "glob")]
     use std::fs::File;
 
     use super::Tera;
@@ -1057,18 +1077,21 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "glob")]
     fn can_load_from_glob() {
         let tera = Tera::new("examples/basic/templates/**/*").unwrap();
         assert!(tera.get_template("base.html").is_ok());
     }
 
     #[test]
+    #[cfg(feature = "glob")]
     fn can_load_from_glob_with_patterns() {
         let tera = Tera::new("examples/basic/templates/**/*.{html, xml}").unwrap();
         assert!(tera.get_template("base.html").is_ok());
     }
 
     #[test]
+    #[cfg(feature = "glob")]
     fn full_reload_with_glob() {
         let mut tera = Tera::new("examples/basic/templates/**/*").unwrap();
         tera.full_reload().unwrap();
@@ -1077,6 +1100,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "glob")]
     fn full_reload_with_glob_after_extending() {
         let mut tera = Tera::new("examples/basic/templates/**/*").unwrap();
         let mut framework_tera = Tera::default();
@@ -1092,6 +1116,7 @@ mod tests {
 
     #[should_panic]
     #[test]
+    #[cfg(feature = "glob")]
     fn test_can_only_parse_templates() {
         let mut tera = Tera::parse("examples/basic/templates/**/*").unwrap();
         for tpl in tera.templates.values_mut() {
@@ -1107,6 +1132,7 @@ mod tests {
 
     // https://github.com/Keats/tera/issues/380
     #[test]
+    #[cfg(feature = "glob")]
     fn glob_work_with_absolute_paths() {
         let tmp_dir = tempdir().expect("create temp dir");
         let cwd = tmp_dir.path().canonicalize().unwrap();
@@ -1118,6 +1144,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "glob")]
     fn glob_work_with_absolute_paths_and_double_star() {
         let tmp_dir = tempdir().expect("create temp dir");
         let cwd = tmp_dir.path().canonicalize().unwrap();
